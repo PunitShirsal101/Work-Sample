@@ -30,7 +30,7 @@ This repository contains a minimal, compile-ready Spring Boot microservices Mave
 
 ## Try it
 - GET http://localhost:8080/products to see demo products.
-- POST http://localhost:8082/orders with a JSON body matching `OrderCreatedEvent` to publish an event that notification-service listens to.
+- POST http://localhost:8082/orders with a JSON body matching `OrderCreateRequest` (userId, items[sku, quantity, price]). On confirmation, an OrderCreatedEvent is published that notification-service listens to.
 
 ## Notes
 - Observability (Zipkin) and ELK stack are not included to keep the scaffold minimal, but can be added easily via dependencies and docker-compose.
