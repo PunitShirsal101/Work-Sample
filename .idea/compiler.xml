@@ -9,6 +9,7 @@
         <module name="config-server" />
         <module name="discovery-server" />
         <module name="inventory-service" />
+        <module name="payment-service" />
         <module name="auth-server" />
         <module name="api-gateway" />
         <module name="product-service" />
