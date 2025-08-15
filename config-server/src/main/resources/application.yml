@@ -1,0 +1,23 @@
+server:
+  port: 8888
+spring:
+  application:
+    name: config-server
+  cloud:
+    config:
+      server:
+        git:
+          uri: ${CONFIG_GIT_URI:}
+          # Provide credentials via environment variables for private repositories.
+          # For GitHub PAT, set GIT_USERNAME to any non-empty value (e.g., 'git') and GIT_PASSWORD or GIT_TOKEN to the PAT.
+          username: ${GIT_USERNAME:}
+          password: ${GIT_PASSWORD:${GIT_TOKEN:}}
+          searchPaths: .
+          default-label: master
+  main:
+    banner-mode: "off"
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

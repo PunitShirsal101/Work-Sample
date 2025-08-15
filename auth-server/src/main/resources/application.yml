@@ -1,0 +1,10 @@
+server:
+  port: 9000
+spring:
+  application:
+    name: auth-server
+  main:
+    banner-mode: "off"
+
+# Note: Minimal placeholder configuration for Spring Authorization Server.
+# Proper client/issuer setup to be completed as needed.
