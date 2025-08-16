@@ -1,4 +1,4 @@
-package com.inventory.api;
+package com.inventory.api.dto;
 
 import java.math.BigDecimal;
 import java.util.List;
