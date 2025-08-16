@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
+import com.order.integration.InventoryClient;
 
 import java.math.BigDecimal;
 import java.util.Map;
@@ -25,18 +26,19 @@ import static com.order.logging.OrderLogMessages.*;
 @Service
 public class OrderServiceImpl implements OrderService {
     private static final Log log = LogFactory.getLog(OrderServiceImpl.class);
-    private static final String KEY_ITEMS = "items";
 
     // In-memory idempotency index retained for minimal change
     private final Map<String, String> idempotencyIndex = new ConcurrentHashMap<>();
     private final RestTemplate restTemplate;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final OrderRepository orderRepository;
+    private final InventoryClient inventoryClient;
 
-    public OrderServiceImpl(RestTemplate restTemplate, KafkaTemplate<String, Object> kafkaTemplate, OrderRepository orderRepository) {
+    public OrderServiceImpl(RestTemplate restTemplate, KafkaTemplate<String, Object> kafkaTemplate, OrderRepository orderRepository, InventoryClient inventoryClient) {
         this.restTemplate = restTemplate;
         this.kafkaTemplate = kafkaTemplate;
         this.orderRepository = orderRepository;
+        this.inventoryClient = inventoryClient;
     }
 
     @Override
@@ -119,9 +121,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private boolean isInventoryAllAvailable(java.util.List<Order.Item> items) {
-        return items.stream().allMatch(it -> Boolean.TRUE.equals(
-                restTemplate.getForObject("http://localhost:8083/inventory/check?sku=" + it.getSku() + "&qty=" + it.getQuantity(), Boolean.class)
-        ));
+        return items.stream().allMatch(it -> inventoryClient.isAvailable(it.getSku(), it.getQuantity()));
     }
 
     private boolean chargePaymentOrWarn(Order order) {
@@ -133,11 +133,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private boolean deductInventoryOrCompensate(Order order, boolean paymentCharged) {
-        var deductReq = new java.util.HashMap<String, Object>();
-        deductReq.put(KEY_ITEMS, order.getItems());
-        boolean deducted = Boolean.TRUE.equals(
-                restTemplate.postForObject("http://localhost:8083/inventory/deduct", deductReq, Boolean.class)
-        );
+        boolean deducted = inventoryClient.deduct(order.getItems());
         if (!deducted && paymentCharged) {
             boolean refunded = simulatePaymentRefund(order.getId(), order.getTotal());
             if (!refunded) {
@@ -183,10 +179,8 @@ public class OrderServiceImpl implements OrderService {
                                                  String msgSuccess,
                                                  String msgCallFailed) {
         try {
-            var restoreReq = new java.util.HashMap<String, Object>();
-            restoreReq.put(KEY_ITEMS, items);
-            Boolean restored = restTemplate.postForObject("http://localhost:8083/inventory/restore", restoreReq, Boolean.class);
-            if (!Boolean.TRUE.equals(restored)) {
+            boolean restored = inventoryClient.restore(items);
+            if (!restored) {
                 log.warn(msgFail + orderId);
             } else {
                 log.info(msgSuccess + orderId);
@@ -266,10 +260,8 @@ public class OrderServiceImpl implements OrderService {
                 throw new IllegalStateException("Refund failed during cancellation");
             }
             try {
-                var restoreReq = new java.util.HashMap<String, Object>();
-                restoreReq.put(KEY_ITEMS, order.getItems());
-                Boolean restored = restTemplate.postForObject("http://localhost:8083/inventory/restore", restoreReq, Boolean.class);
-                if (!Boolean.TRUE.equals(restored)) {
+                boolean restored = inventoryClient.restore(order.getItems());
+                if (!restored) {
                     log.warn(MSG_INV_RESTORE_REPORTED_FAILURE_FOR_ORDER + id);
                 } else {
                     log.info(MSG_INV_RESTORE_SUCCEEDED_FOR_ORDER + id);

@@ -5,12 +5,62 @@ spring:
     name: product-service
   main:
     banner-mode: "off"
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+  jackson:
+    serialization:
+      WRITE_DATES_AS_TIMESTAMPS: false
+  cloud:
+    circuitbreaker:
+      resilience4j:
+        enabled: true
+  datasource:
+    url: jdbc:postgresql://localhost:5432/product_service
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: true
+
+inventory-service:
+  base-url: ${INVENTORY_BASE_URL:http://localhost:8083}
+
 eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
+
 management:
   endpoints:
     web:
       exposure:
         include: health,info
+
+# Application specific
+app:
+  topics:
+    product-events: ${PRODUCT_EVENTS_TOPIC:product-events}
+
+# Resilience4j CircuitBreaker configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      inventory:
+        registerHealthIndicator: true
+        slidingWindowSize: 20
+        slidingWindowType: COUNT_BASED
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true

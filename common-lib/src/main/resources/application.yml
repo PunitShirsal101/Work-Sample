@@ -11,4 +11,5 @@ spring:
 
 app:
   database:
-    name: ${TARGET_DB_NAME} // change every time
+    name: ${TARGET_DB_NAME}
+    # change every time
